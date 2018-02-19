@@ -412,6 +412,8 @@ void TrakerManager::doHungarianAlg(const vector<Rect>& detections)
             _controller.waitList.feed(scaleWin(detection_left[i],BODYSIZE_TO_DETECTION_RATIO),1.0);
     }
 }
+
+// Feb 2018 Update: Add Street Crossing Features
 void TrakerManager::counterUpdate(PedestrianPosition old_position, PedestrianPosition current_position) {
     // 1. Crossing from A_Left to AB
     if (old_position == A_Left && current_position == AB) {
