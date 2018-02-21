@@ -71,6 +71,12 @@ NOTE:
 #include "multiTrackAssociation.h"
 #include "parameter.h"
 
+extern "C" {
+    #include <libavutil/imgutils.h>
+    #include <libavcodec/avcodec.h>
+    #include <libswscale/swscale.h>
+}
+
 using namespace cv;
 using namespace std;
 
@@ -163,7 +169,7 @@ void multiTrack(int readerType,int detectorType, int gpu)
 	}
 
 	TrakerManager mTrack(detector,frame,EXPERT_THRESH);
-	VideoWriter v("output.mpg", CV_FOURCC('P','I','M','1'), 25, Size(1280,720), true);
+	VideoWriter v("output.avi", CV_FOURCC('H','2','6','3'), 12, Size(1280,720), true);
 	for (int frameCount=0;frame.data!=NULL;frameCount++)
 	{
         clock_t begin = clock();
