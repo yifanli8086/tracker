@@ -174,7 +174,9 @@ void multiTrack(int readerType,int detectorType, int gpu)
 	{
         clock_t begin = clock();
 		mTrack.doWork(frame, gpu, frameCount);
-        resizeWindow("PedCount", 1920, 1080);
+        if (frame.cols > 1920 || frame.rows > 1080) {
+            cv::pyrDown(frame, frame, cv::Size(frame.cols / 2, frame.rows / 2));
+        }
         moveWindow("PedCount", 0, 0);
         imshow("PedCount", frame);
 		v.write(frame);
