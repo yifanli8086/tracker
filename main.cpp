@@ -169,12 +169,14 @@ void multiTrack(int readerType,int detectorType, int gpu)
 	}
 
 	TrakerManager mTrack(detector,frame,EXPERT_THRESH);
-	VideoWriter v("output.avi", CV_FOURCC('H','2','6','3'), 12, Size(1280,720), true);
+	VideoWriter v("output.avi", CV_FOURCC('X','V','I','D'), 9, Size(1280,720), true);
 	for (int frameCount=0;frame.data!=NULL;frameCount++)
 	{
         clock_t begin = clock();
 		mTrack.doWork(frame, gpu, frameCount);
-		imshow("PedCount", frame);
+        resizeWindow("PedCount", 1920, 1080);
+        moveWindow("PedCount", 0, 0);
+        imshow("PedCount", frame);
 		v.write(frame);
 		reader->readImg(frame);
 

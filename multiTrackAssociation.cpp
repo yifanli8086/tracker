@@ -414,21 +414,21 @@ void TrakerManager::doHungarianAlg(const vector<Rect>& detections)
 }
 
 // Feb 2018 Update: Add Street Crossing Features
-void TrakerManager::counterUpdate(PedestrianPosition old_position, PedestrianPosition current_position) {
+void TrakerManager::counterUpdate(PedestrianPosition ancient, PedestrianPosition curt) {
     // 1. Crossing from A_Left to AB
-    if (old_position == A_Left && current_position == AB) {
+    if (ancient == A_Left && curt == AB) {
         countAB++;
     }
     // 2. Crossing from BC to AB
-    if (old_position == BC && current_position == AB) {
+    if (ancient == BC && curt == AB) {
         countBA++;
     }
         // 3. Crossing from BC to CD
-    else if (old_position == BC && current_position == CD) {
+    else if (ancient == BC && curt == CD) {
         countCD++;
     }
         // 4. Crossing from D_Right to CD
-    else if (old_position == D_Right && current_position == CD) {
+    else if (ancient == D_Right && curt == CD) {
         countDC++;
     }
 }
@@ -591,9 +591,9 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
 	for (size_t it=0;it<detections.size();it++)
 	{
 		if (det_filter[it]!=BAD)
-			rectangle(frame,detections[it],Scalar(0,0,255),1);
+			rectangle(frame,detections[it],Scalar(0,255,127),2);
 		else
-			rectangle(frame,detections[it],Scalar(0,255,255),1);
+			rectangle(frame,detections[it],Scalar(0,255,127),1);
 	}
 
     //for each tracker, do tracking, tracker and template management
@@ -652,27 +652,6 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
 
     int max = 0;
 
-    char buff[10];
-    sprintf(buff, "%d", countAB);
-    string sss = buff;
-
-
-    stringstream ss; ss.str("");
-    int countTotal = countAB + countBA + countCD + countDC;
-
-
-    std::string countABstr = "A>>B: " + sss;
-    ss << countBA;
-    std::string countBAstr = "B>>A: " + ss.str(); ss.str(""); ss << countCD;
-    std::string countCDstr = "C>>D: " + ss.str(); ss.str(""); ss << countDC;
-    std::string countDCstr = "D>>C: " + ss.str(); ss.str(""); ss << countTotal;
-    std::string total = "Total: " + ss.str();
-    cv::putText(frame, countABstr, cv::Point(5, 75), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-    cv::putText(frame, countBAstr, cv::Point(5, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-    cv::putText(frame, countCDstr, cv::Point(5, 125), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-    cv::putText(frame, countDCstr, cv::Point(5, 150), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-    cv::putText(frame, total, cv::Point(5, 175), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
-
     // register results and draw
     vector<Result2D> output;
 
@@ -720,8 +699,10 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
                     PedestrianPosition prev = iterPrev->second;
                     PedestrianPosition early = iterEarly->second;
                     PedestrianPosition ancient = iterAncient->second;
+                    bool exitingAB = (ancient == AB && curt == BC) || (ancient == AB && curt == A_Left);
+                    bool exitingCD = (ancient == CD && curt == D_Right) || (ancient == CD && curt == BC);
                     // 3. If ancient != curt && this id doesn't have no crossing like that, crossing happened.
-                    if (curt != ancient && ancient != VP_NONE && curt != VP_NONE) {
+                    if (curt != ancient && ancient != VP_NONE && curt != VP_NONE && !exitingAB && !exitingCD) {
                         // No recent crossing record for this id or
                         // If existed, check whether recent crossing is the same as present crossing (double-count)
                         if (iterCrossFrom == crossFrom.end() || (iterCrossFrom->second != ancient && iterCrossFrom->second != curt && iterCrossTo->second != curt && iterCrossTo->second != ancient)) {
@@ -731,16 +712,44 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
                             crossTo.erase(id);
                             crossFrom.insert(std::pair<int, PedestrianPosition>(id, ancient));
                             crossTo.insert(std::pair<int, PedestrianPosition>(id, curt));
-                            cout << "id=" << id << " crossing from " << location[ancient] << " to " << location[curt] << endl;
-                            std::string address = "Frame-" + std::to_string(frame_n) + "-id-" + std::to_string(id) + "-" + location[ancient] + "-" + location[curt] + "-" + ".jpg";
 
                             // 5. Update Counters
-                            counterUpdate(ancient, curt);
+//                            counterUpdate(ancient, curt);
+                            if (ancient == A_Left && curt == AB) {
+                                countAB++;
+                            }
+                            // 2. Crossing from BC to AB
+                            if (ancient == BC && curt == AB) {
+                                countBA++;
+                            }
+                                // 3. Crossing from BC to CD
+                            else if (ancient == BC && curt == CD) {
+                                countCD++;
+                            }
+                                // 4. Crossing from D_Right to CD
+                            else if (ancient == D_Right && curt == CD) {
+                                countDC++;
+                            }
+                            
+                            cout << "id=" << id << " crossing from " << location[ancient] << " to " << location[curt] << endl;
+                            Mat tmp = frame.clone();
 
                             // 6. Only show circle when it hits the line
-                            cv::circle(frame, centroid, 5, cv::Scalar(255, 255, 255), 5);
+                            cv::circle(tmp, centroid, 5, cv::Scalar(255, 255, 255), 5);
 
-                            bool bSuccess = cv::imwrite(address, frame, quality);
+                            std::string countABstr = "Cross A -> B: " + std::to_string(countAB);
+                            std::string countBAstr = "Cross B -> A: " + std::to_string(countBA);
+                            std::string countCDstr = "Cross C -> D: " + std::to_string(countCD);
+                            std::string countDCstr = "Cross D -> C: " + std::to_string(countDC);
+                            int countTotal = countAB + countBA + countCD + countDC;
+                            std::string total = "Total: " + std::to_string(countTotal);
+                            cv::putText(tmp, countABstr, cv::Point(5, 75), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+                            cv::putText(tmp, countBAstr, cv::Point(5, 100), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+                            cv::putText(tmp, countCDstr, cv::Point(5, 125), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+                            cv::putText(tmp, countDCstr, cv::Point(5, 150), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+                            cv::putText(tmp, total, cv::Point(5, 175), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0, 0, 255), 2);
+                            std::string address = to_string(countTotal) + "-Frame-" + std::to_string(frame_n) + "-id-" + std::to_string(id) + "-" + location[ancient] + "-" + location[curt] + ".jpg";
+                            bool bSuccess = cv::imwrite(address, tmp, quality);
                             if (!bSuccess){
                                 std::cout << "Error: Failed to save the image" << std::endl;
                             }
@@ -812,6 +821,18 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
     line(frame, Point(408, 304), Point(1021, 392), Scalar(0, 0, 255), 2, 8);
     // Line D
     line(frame, Point(458, 295), Point(1086, 373), Scalar(0, 0, 255), 2, 8);
+
+    std::string countABstr = "Cross A -> B: " + std::to_string(countAB);
+    std::string countBAstr = "Cross B -> A: " + std::to_string(countBA);
+    std::string countCDstr = "Cross C -> D: " + std::to_string(countCD);
+    std::string countDCstr = "Cross D -> C: " + std::to_string(countDC);
+    int countTotal = countAB + countBA + countCD + countDC;
+    std::string total = "Total: " + std::to_string(countTotal);
+    cv::putText(frame, countABstr, cv::Point(5, 75), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    cv::putText(frame, countBAstr, cv::Point(5, 100), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    cv::putText(frame, countCDstr, cv::Point(5, 125), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    cv::putText(frame, countDCstr, cv::Point(5, 150), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 255), 2);
+    cv::putText(frame, total, cv::Point(5, 175), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 255), 2);
 
     // Execute deep copy from curtPosition to prevPosition
     ancientPositions = earlyPositions;
