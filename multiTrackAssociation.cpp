@@ -700,7 +700,7 @@ void TrakerManager::doWork(Mat& frame, int gpu, int frame_n)
                     PedestrianPosition early = iterEarly->second;
                     PedestrianPosition ancient = iterAncient->second;
                     bool exitingAB = (ancient == AB && curt == BC) || (ancient == AB && curt == A_Left);
-                    bool exitingCD = (ancient == CD && curt == D_Right) || (ancient == CD && curt == BC);
+//                    bool exitingCD = (ancient == CD && curt == D_Right) || (ancient == CD && curt == BC);
                     // 3. If ancient != curt && this id doesn't have no crossing like that, crossing happened.
                     if (curt != ancient && ancient != VP_NONE && curt != VP_NONE && !exitingAB && !exitingCD) {
                         // No recent crossing record for this id or
